@@ -103,9 +103,8 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
     assert not _is_from_npm_registry("https://example.org/fecha.tar.gz")
 
 
-@pytest.mark.parametrize(
-    "pyarn_package, expected_package",
-    [
+def test_create_package_from_pyarn_package(rooted_tmp_path: RootedPath) -> None:
+    test_cases: list[tuple[PYarnPackage, YarnClassicPackage]] = [
         (
             PYarnPackage(
                 name="foo",
@@ -132,6 +131,7 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
                 name="foo",
                 version="1.0.0",
                 dev=False,
+                root=rooted_tmp_path,
                 relpath=Path("path/foo-1.0.0.tgz"),
             ),
         ),
@@ -145,6 +145,7 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
                 name="foo",
                 version="0.0.0",
                 dev=False,
+                root=rooted_tmp_path,
                 relpath=Path("link"),
             ),
         ),
@@ -174,17 +175,17 @@ def test__is_from_npm_registry_can_parse_incorrect_registry_urls() -> None:
                 url="https://example.com/foo-1.0.0.tgz",
             ),
         ),
-    ],
-)
-def test_create_package_from_pyarn_package(
-    pyarn_package: PYarnPackage, expected_package: YarnClassicPackage, rooted_tmp_path: RootedPath
-) -> None:
-    runtime_deps = (
-        set() if expected_package.dev else set({f"{pyarn_package.name}@{pyarn_package.version}"})
-    )
+    ]
 
-    package_factory = _YarnClassicPackageFactory(rooted_tmp_path, runtime_deps)
-    assert package_factory.create_package_from_pyarn_package(pyarn_package) == expected_package
+    for pyarn_package, expected_package in test_cases:
+        runtime_deps = (
+            set()
+            if expected_package.dev
+            else set({f"{pyarn_package.name}@{pyarn_package.version}"})
+        )
+
+        package_factory = _YarnClassicPackageFactory(rooted_tmp_path, runtime_deps)
+        assert package_factory.create_package_from_pyarn_package(pyarn_package) == expected_package
 
 
 def test_create_package_from_pyarn_package_fail_absolute_path(rooted_tmp_path: RootedPath) -> None:
@@ -291,7 +292,7 @@ def test_resolve_packages(
     output = resolve_packages(project)
     mock_extract_workspaces.assert_called_once_with(rooted_tmp_path)
     mock_get_yarn_lock.assert_called_once_with(yarn_lock_path)
-    mock_get_main_package.assert_called_once_with(project.package_json)
+    mock_get_main_package.assert_called_once_with(project.source_dir, project.package_json)
     mock_get_workspace_packages.assert_called_once_with(
         rooted_tmp_path, mock_extract_workspaces.return_value
     )
@@ -311,10 +312,11 @@ def test__get_main_package(rooted_tmp_path: RootedPath) -> None:
     expected_output = WorkspacePackage(
         name="foo",
         version="1.0.0",
+        root=rooted_tmp_path,
         relpath=rooted_tmp_path.subpath_from_root,
     )
 
-    output = _get_main_package(package_json)
+    output = _get_main_package(rooted_tmp_path, package_json)
     assert output == expected_output
 
 
@@ -328,7 +330,7 @@ def test__get_main_package_no_name(rooted_tmp_path: RootedPath) -> None:
     )
 
     with pytest.raises(PackageRejected, match=error_msg):
-        _get_main_package(package_json)
+        _get_main_package(rooted_tmp_path, package_json)
 
 
 def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
@@ -348,6 +350,7 @@ def test__get_workspace_packages(rooted_tmp_path: RootedPath) -> None:
         WorkspacePackage(
             name="foo",
             version="1.0.0",
+            root=rooted_tmp_path,
             relpath=workspace_path.path.relative_to(rooted_tmp_path.path),
         )
     ]

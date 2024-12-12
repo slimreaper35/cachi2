@@ -42,6 +42,7 @@ class _UrlMixin(BaseModel):
 
 
 class _RelpathMixin(BaseModel):
+    root: RootedPath
     relpath: Path
 
 
@@ -116,6 +117,7 @@ class _YarnClassicPackageFactory:
                 return FilePackage(
                     name=package.name,
                     version=package.version,
+                    root=self._source_dir,
                     relpath=path.subpath_from_root,
                     integrity=package.checksum,
                     dev=dev,
@@ -123,6 +125,7 @@ class _YarnClassicPackageFactory:
             return LinkPackage(
                 name=package.name,
                 version=package.version,
+                root=self._source_dir,
                 relpath=path.subpath_from_root,
                 dev=dev,
             )
@@ -208,7 +211,7 @@ def _get_packages_from_lockfile(
     ]
 
 
-def _get_main_package(package_json: PackageJson) -> WorkspacePackage:
+def _get_main_package(source_dir: RootedPath, package_json: PackageJson) -> WorkspacePackage:
     """Return a WorkspacePackage for the main package in package.json."""
     if "name" not in package_json._data:
         raise PackageRejected(
@@ -218,6 +221,7 @@ def _get_main_package(package_json: PackageJson) -> WorkspacePackage:
     return WorkspacePackage(
         name=package_json.data["name"],
         version=package_json.data.get("version"),
+        root=source_dir,
         relpath=package_json.path.subpath_from_root.parent,
     )
 
@@ -230,6 +234,7 @@ def _get_workspace_packages(
         WorkspacePackage(
             name=ws.package_json.data.get("name"),
             version=ws.package_json.data.get("version"),
+            root=source_dir,
             relpath=ws.path.relative_to(source_dir.path),
         )
         for ws in workspaces
@@ -243,7 +248,7 @@ def resolve_packages(project: Project) -> Iterable[YarnClassicPackage]:
     runtime_deps = find_runtime_deps(project.package_json, yarn_lock, workspaces)
 
     return chain(
-        [_get_main_package(project.package_json)],
+        [_get_main_package(project.source_dir, project.package_json)],
         _get_workspace_packages(project.source_dir, workspaces),
         _get_packages_from_lockfile(project.source_dir, yarn_lock, runtime_deps),
     )
