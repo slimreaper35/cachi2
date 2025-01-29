@@ -32,7 +32,7 @@ def run_cmd(cmd: Sequence[str], params: dict) -> str:
     :raises CalledProcessError: if the command fails
     """
     params.setdefault("capture_output", True)
-    params.setdefault("universal_newlines", True)
+    params.setdefault("text", True)
     params.setdefault("encoding", "utf-8")
 
     conf = get_config()
