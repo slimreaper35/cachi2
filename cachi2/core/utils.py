@@ -21,22 +21,27 @@ class _FastCopyFailedFallback(Exception):
     """Signals a fall back from fast-in kernel copying to regular copy."""
 
 
-def run_cmd(cmd: Sequence[str], params: dict) -> str:
+def run_cmd(cmd: Sequence[str], params: dict[str, Any]) -> str:
     """
-    Run the given command with provided parameters.
+    Execute a command using `subprocess.run`.
 
-    :param iter cmd: iterable representing command to be executed
-    :param dict params: keyword parameters for command execution
-    :returns: the command output
-    :rtype: str
-    :raises CalledProcessError: if the command fails
+    :param cmd: Command sequence to run (first element is the executable)
+    :param params: Keyword arguments for `subprocess.run`, with defaults:
+    - `capture_output=True`
+    - `text=True`
+    - `encoding="utf-8"`
+    - `timeout` (from the config class or file)
+
+    :return: Captured standard output as a string
+    :raises `Cachi2Error`: If the executable is missing in $PATH
+    :raises `subprocess.CalledProcessError`: If the command exits with a non-zero status
     """
     params.setdefault("capture_output", True)
     params.setdefault("text", True)
     params.setdefault("encoding", "utf-8")
 
-    conf = get_config()
-    params.setdefault("timeout", conf.subprocess_timeout)
+    config = get_config()
+    params.setdefault("timeout", config.subprocess_timeout)
 
     executable, *args = cmd
     executable_path = shutil.which(executable)
@@ -49,7 +54,7 @@ def run_cmd(cmd: Sequence[str], params: dict) -> str:
             ),
         )
 
-    response = subprocess.run([executable_path, *args], **params)
+    response: subprocess.CompletedProcess[str] = subprocess.run([executable_path, *args], **params)
 
     try:
         response.check_returncode()
