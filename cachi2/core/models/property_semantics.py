@@ -8,12 +8,15 @@ if TYPE_CHECKING:
 
 
 PropertyName = Literal[
+    # Cachi2 properties
     "cachi2:bundler:package:binary",
     "cachi2:found_by",
     "cachi2:rpm_summary",
     "cachi2:missing_hash:in_file",
     "cachi2:pip:package:binary",
     "cachi2:pip:package:build-dependency",
+    "cachi2:cargo:package:build-dependency",
+    # CycloneDX properties
     "cdx:npm:package:bundled",
     "cdx:npm:package:development",
 ]
@@ -36,6 +39,7 @@ class PropertySet:
     npm_development: bool = False
     pip_package_binary: bool = False
     pip_build_dependency: bool = False
+    cargo_build_dependency: bool = False
     bundler_package_binary: bool = False
     rpm_summary: str = ""
 
@@ -48,6 +52,7 @@ class PropertySet:
         npm_development = False
         pip_package_binary = False
         pip_build_dependency = False
+        cargo_build_dependency = False
         bundler_package_binary = False
         rpm_summary = ""
 
@@ -64,6 +69,8 @@ class PropertySet:
                 pip_package_binary = True
             elif prop.name == "cachi2:pip:package:build-dependency":
                 pip_build_dependency = True
+            elif prop.name == "cachi2:cargo:package:build-dependency":
+                cargo_build_dependency = True
             elif prop.name == "cachi2:bundler:package:binary":
                 bundler_package_binary = True
             elif prop.name == "cachi2:rpm_summary":
@@ -78,6 +85,7 @@ class PropertySet:
             npm_development,
             pip_package_binary,
             pip_build_dependency,
+            cargo_build_dependency,
             bundler_package_binary,
             rpm_summary,
         )
@@ -99,6 +107,8 @@ class PropertySet:
             props.append(Property(name="cachi2:pip:package:binary", value="true"))
         if self.pip_build_dependency:
             props.append(Property(name="cachi2:pip:package:build-dependency", value="true"))
+        if self.cargo_build_dependency:
+            props.append(Property(name="cachi2:cargo:package:build-dependency", value="true"))
         if self.bundler_package_binary:
             props.append(Property(name="cachi2:bundler:package:binary", value="true"))
         if self.rpm_summary:
@@ -116,6 +126,7 @@ class PropertySet:
             npm_development=self.npm_development and other.npm_development,
             pip_package_binary=self.pip_package_binary or other.pip_package_binary,
             pip_build_dependency=self.pip_build_dependency and other.pip_build_dependency,
+            cargo_build_dependency=self.cargo_build_dependency and other.cargo_build_dependency,
             bundler_package_binary=self.bundler_package_binary or other.bundler_package_binary,
             rpm_summary=self.rpm_summary or other.rpm_summary,
         )
