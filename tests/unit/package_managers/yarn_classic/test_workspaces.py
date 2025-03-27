@@ -28,11 +28,7 @@ def test_packages_with_workspaces_outside_source_dir_are_rejected(
 
 
 @mock.patch("hermeto.core.package_managers.yarn_classic.workspaces._get_workspace_paths")
-@mock.patch(
-    "hermeto.core.package_managers.yarn_classic.workspaces._ensure_workspaces_are_well_formed"
-)
 def test_workspaces_could_be_parsed(
-    mock_workspaces_ok: mock.Mock,
     mock_get_ws_paths: mock.Mock,
     rooted_tmp_path: RootedPath,
 ) -> None:
@@ -76,32 +72,22 @@ def test_extracting_workspace_globs_works_for_all_types_of_workspaces(
     package: dict,
     expected: list,
 ) -> None:
-
     result = _extract_workspaces_globs(package)
 
     assert expected == result
 
 
-@pytest.mark.parametrize(
-    "package_relpath",
-    [
-        pytest.param(
-            ".",
-            id="workspace_root_is_source_root",
-        ),
-        pytest.param(
-            "src",
-            id="workspace_root_is_not_source_root",
-        ),
-    ],
-)
-def test_workspace_paths_could_be_resolved(
-    package_relpath: str, rooted_tmp_path: RootedPath
-) -> None:
-    package_path = rooted_tmp_path.join_within_root(package_relpath)
-    workspace_path = package_path.join_within_root("foo")
-    workspace_path.path.mkdir(parents=True)
+def test_get_workspace_paths(rooted_tmp_path: RootedPath) -> None:
+    workspaces = rooted_tmp_path.join_within_root("packages")
+    workspaces.path.mkdir()
 
-    result = list(_get_workspace_paths(["foo"], package_path))
+    some_workspace = workspaces.join_within_root("some_workspace")
+    some_workspace.path.mkdir()
+    some_workspace.join_within_root("package.json").path.write_text('{"name": "some_workspace"}')
 
-    assert result == [workspace_path.path]
+    some_directory = workspaces.join_within_root("some_directory")
+    some_directory.path.mkdir()
+
+    result = _get_workspace_paths(workspaces_globs=["packages/*"], source_dir=rooted_tmp_path)
+    # should not return directories without package.json
+    assert result == [some_workspace.path]

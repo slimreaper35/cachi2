@@ -4,7 +4,6 @@ from typing import Any, Generator, Iterable
 
 import pydantic
 
-from hermeto.core.errors import PackageRejected
 from hermeto.core.package_managers.yarn_classic.project import PackageJson
 from hermeto.core.rooted_path import RootedPath
 
@@ -41,28 +40,21 @@ def ensure_no_path_leads_out(
         source_dir.join_within_root(path)
 
 
-def _ensure_workspaces_are_well_formed(
-    paths: Iterable[Path],
-) -> None:
-    """Ensure that every workspace contains package.json.
-
-    Reject the package otherwise.
-    """
-    for p in paths:
-        if not Path(p, "package.json").is_file():
-            raise PackageRejected(
-                reason=f"Workspace {p} does not contain 'package.json'",
-                solution=None,
-            )
-
-
 def _get_workspace_paths(workspaces_globs: list[str], source_dir: RootedPath) -> list[Path]:
     """Resolve globs within source directory."""
 
     def all_paths_matching(glob: str) -> Generator[Path, None, None]:
         return (path.resolve() for path in source_dir.path.glob(glob) if path.is_dir())
 
-    return list(chain.from_iterable(map(all_paths_matching, workspaces_globs)))
+    def contains_package_json(path: Path) -> bool:
+        return path.joinpath("package.json").is_file()
+
+    return list(
+        filter(
+            contains_package_json,
+            chain.from_iterable(all_paths_matching(glob) for glob in workspaces_globs),
+        )
+    )
 
 
 def _extract_workspaces_globs(package: dict[str, Any]) -> list[str]:
@@ -90,7 +82,6 @@ def extract_workspace_metadata(package_path: RootedPath) -> list[Workspace]:
     workspaces_globs = _extract_workspaces_globs(package_json.data)
     workspaces_paths = _get_workspace_paths(workspaces_globs, package_path)
     ensure_no_path_leads_out(workspaces_paths, package_path)
-    _ensure_workspaces_are_well_formed(workspaces_paths)
 
     parsed_workspaces = []
     for wp in workspaces_paths:
